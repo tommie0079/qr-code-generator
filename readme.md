@@ -6,30 +6,28 @@ A modern web-based QR code generator built with Flask and Python. Generate custo
 ![Flask](https://img.shields.io/badge/Flask-3.0.0-green)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
 
-## Features
+Essential Files:
 
-- 🔗 **URL QR Codes** - Convert any website link into a scannable QR code
-- 📶 **WiFi QR Codes** - Generate QR codes for automatic WiFi connection
-- 🎨 **Custom Styling** - 4 QR code styles (Square, Rounded, Circle, Gapped)
-- 👁️ **Corner Customization** - 3 finder pattern styles
-- 🎨 **Color Picker** - Customize foreground and background colors
-- 🖼️ **Logo Embedding** - Add your logo to the center of URL QR codes
-- 📱 **Responsive Design** - Works on desktop and mobile devices
-- ⬇️ **High Resolution** - Download QR codes in high quality PNG format
-- 🐳 **Docker Support** - Easy deployment with Docker
+app.py - Main Flask application (backend logic)
+docker-compose.yml - Docker orchestration
+Dockerfile - Docker build instructions (used by docker-compose)
+requirements.txt - Python dependencies (used by Dockerfile to install packages)
+index.html - Frontend UI (Flask looks for this)
+Optional Files (but recommended):
 
-## Screenshots
+README.md - Documentation for setup
+.gitignore - Keeps your repository clean
+So the minimum files needed to run elsewhere with Docker are:
 
-The application features a clean, modern interface with:
-- Side-by-side layout (form on left, preview on right)
-- Real-time QR code preview
-- Intuitive style selection cards
-- Color customization with live preview
+qr/
+├── app.py
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── templates/
+    └── index.html
 
-## Requirements
 
-- Python 3.11 or higher
-- Docker (optional, for containerized deployment)
 
 ## Installation
 
