@@ -18,7 +18,7 @@ Optional Files (but recommended):
 README.md - Documentation for setup
 .gitignore - Keeps your repository clean
 So the minimum files needed to run elsewhere with Docker are:
-
+```bash
 qr/
 ├── app.py
 ├── docker-compose.yml
@@ -26,7 +26,7 @@ qr/
 ├── requirements.txt
 └── templates/
     └── index.html
-
+```
 
 
 ## Installation
