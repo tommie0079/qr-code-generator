@@ -7,14 +7,14 @@ A modern web-based QR code generator built with Flask and Python. Generate custo
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
 
 Essential Files:
-```bash
-app.py - Main Flask application (backend logic)
-docker-compose.yml - Docker orchestration
-Dockerfile - Docker build instructions (used by docker-compose)
-requirements.txt - Python dependencies (used by Dockerfile to install packages)
-index.html - Frontend UI (Flask looks for this)
-Optional Files (but recommended):
-```
+
+1. app.py - Main Flask application (backend logic)
+2. docker-compose.yml - Docker orchestration
+3. Dockerfile - Docker build instructions (used by docker-compose)
+4. requirements.txt - Python dependencies (used by Dockerfile to install packages)
+5. index.html - Frontend UI (Flask looks for this)
+6. Optional Files (but recommended):
+
 
 README.md - Documentation for setup
 .gitignore - Keeps your repository clean
