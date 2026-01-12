@@ -1,4 +1,5 @@
 # QR Code Generator
+<img width="1295" height="811" alt="qr" src="https://github.com/user-attachments/assets/9767ebfa-2c9b-4d84-9faa-61a2a4403a26" />
 
 A modern web-based QR code generator built with Flask and Python. Generate customizable QR codes for URLs and WiFi networks with various styling options, colors, and logo embedding.
 
