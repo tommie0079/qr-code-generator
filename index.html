@@ -263,6 +263,14 @@
             flex-direction: column;
         }
 
+        .color-picker.disabled {
+            opacity: 0.45;
+        }
+
+        .color-picker.disabled input {
+            cursor: not-allowed;
+        }
+
         .color-input-wrapper {
             display: flex;
             align-items: center;
@@ -443,6 +451,17 @@
             display: inline-block;
             margin: 10px 0;
             box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+        }
+
+        .qr-code.transparent-preview {
+            background-color: #111827;
+            background-image:
+                linear-gradient(45deg, #1f2937 25%, transparent 25%),
+                linear-gradient(-45deg, #1f2937 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #1f2937 75%),
+                linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0;
         }
 
         .qr-code img {
@@ -642,13 +661,21 @@
                 </div>
                 <div class="color-picker">
                     <label>Background Color</label>
-                    <div class="color-input-wrapper">
+                    <div class="color-input-wrapper" id="bgColorPicker">
                         <input type="color" id="bgColor" value="#ffffff" onchange="updateColorValue('bg')">
                         <input type="text" class="color-value" id="bgColorValue" value="#ffffff" maxlength="7" spellcheck="false" oninput="updateColorFromText('bg')" onblur="finalizeColorInput('bg')">
                     </div>
                 </div>
             </div>
             <div class="hint-text">Use the picker or enter a 6-digit hex color like #0f172a.</div>
+        </div>
+
+        <div class="input-group">
+            <div class="checkbox-wrapper">
+                <input type="checkbox" id="transparentBackground" onchange="updateTransparentBackgroundState()">
+                <label for="transparentBackground">Transparent background (PNG alpha)</label>
+            </div>
+            <div class="hint-text">When enabled, the QR background is transparent and the preview shows a checkerboard.</div>
         </div>
 
             <button id="generateBtn" onclick="generateQR()">Generate QR Code</button>
@@ -664,7 +691,7 @@
             </div>
             <div class="result" id="result" style="display: none;">
                 <h3>Your QR Code:</h3>
-                <div class="qr-code">
+                <div class="qr-code" id="qrCodeFrame">
                     <img id="qrImage" src="" alt="QR Code">
                 </div>
                 <button class="download-btn" onclick="downloadQR()">Download QR Code</button>
@@ -702,6 +729,19 @@
             const { pickerId, valueId } = getColorElementIds(type);
             document.getElementById(pickerId).value = colorValue;
             document.getElementById(valueId).value = colorValue;
+        }
+
+        function updateTransparentBackgroundState() {
+            const isTransparentBackground = document.getElementById('transparentBackground').checked;
+            const bgColorPicker = document.getElementById('bgColorPicker');
+            const bgColorInput = document.getElementById('bgColor');
+            const bgColorValue = document.getElementById('bgColorValue');
+            const qrCodeFrame = document.getElementById('qrCodeFrame');
+
+            bgColorPicker.classList.toggle('disabled', isTransparentBackground);
+            bgColorInput.disabled = isTransparentBackground;
+            bgColorValue.disabled = isTransparentBackground;
+            qrCodeFrame.classList.toggle('transparent-preview', isTransparentBackground && Boolean(currentQRImage));
         }
 
         function selectQRType(type) {
@@ -865,10 +905,13 @@
             loader.classList.add('show');
             generateBtn.disabled = true;
 
+            const isTransparentBackground = document.getElementById('transparentBackground').checked;
             const fgColor = normalizeHexColor(document.getElementById('fgColorValue').value);
-            const bgColor = normalizeHexColor(document.getElementById('bgColorValue').value);
+            const bgColor = isTransparentBackground
+                ? document.getElementById('bgColor').value
+                : normalizeHexColor(document.getElementById('bgColorValue').value);
 
-            if (!fgColor || !bgColor) {
+            if (!fgColor || (!isTransparentBackground && !bgColor)) {
                 loader.classList.remove('show');
                 generateBtn.disabled = false;
                 errorDiv.textContent = 'Colors must be 6-digit hex values like #0f172a.';
@@ -877,7 +920,9 @@
             }
 
             syncColorInputs('fg', fgColor);
-            syncColorInputs('bg', bgColor);
+            if (!isTransparentBackground) {
+                syncColorInputs('bg', bgColor);
+            }
 
             try {
                 const response = await fetch('/generate', {
@@ -891,7 +936,8 @@
                         style: selectedStyle,
                         eye_style: selectedEyeStyle,
                         fg_color: fgColor,
-                        bg_color: bgColor
+                        bg_color: bgColor,
+                        transparent_background: isTransparentBackground
                     })
                 });
 
@@ -900,6 +946,7 @@
                 if (data.success) {
                     currentQRImage = data.image;
                     document.getElementById('qrImage').src = data.image;
+                    document.getElementById('qrCodeFrame').classList.toggle('transparent-preview', isTransparentBackground);
                     // Show result, hide placeholder
                     document.getElementById('placeholder').style.display = 'none';
                     resultDiv.style.display = 'block';
@@ -929,6 +976,8 @@
                 generateQR();
             }
         });
+
+        updateTransparentBackgroundState();
     </script>
 </body>
 </html>
