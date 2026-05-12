@@ -637,17 +637,18 @@
                     <label>Foreground Color</label>
                     <div class="color-input-wrapper">
                         <input type="color" id="fgColor" value="#000000" onchange="updateColorValue('fg')">
-                        <input type="text" class="color-value" id="fgColorValue" value="#000000" readonly>
+                        <input type="text" class="color-value" id="fgColorValue" value="#000000" maxlength="7" spellcheck="false" oninput="updateColorFromText('fg')" onblur="finalizeColorInput('fg')">
                     </div>
                 </div>
                 <div class="color-picker">
                     <label>Background Color</label>
                     <div class="color-input-wrapper">
                         <input type="color" id="bgColor" value="#ffffff" onchange="updateColorValue('bg')">
-                        <input type="text" class="color-value" id="bgColorValue" value="#ffffff" readonly>
+                        <input type="text" class="color-value" id="bgColorValue" value="#ffffff" maxlength="7" spellcheck="false" oninput="updateColorFromText('bg')" onblur="finalizeColorInput('bg')">
                     </div>
                 </div>
             </div>
+            <div class="hint-text">Use the picker or enter a 6-digit hex color like #0f172a.</div>
         </div>
 
             <button id="generateBtn" onclick="generateQR()">Generate QR Code</button>
@@ -678,6 +679,30 @@
         let selectedEyeStyle = 'square';
         let selectedQRType = 'url';
         let selectedWifiSecurity = 'WPA';
+        const hexColorPattern = /^#?[0-9a-fA-F]{6}$/;
+
+        function getColorElementIds(type) {
+            return type === 'fg'
+                ? { pickerId: 'fgColor', valueId: 'fgColorValue' }
+                : { pickerId: 'bgColor', valueId: 'bgColorValue' };
+        }
+
+        function normalizeHexColor(colorValue) {
+            const trimmedValue = colorValue.trim();
+
+            if (!hexColorPattern.test(trimmedValue)) {
+                return null;
+            }
+
+            const normalizedValue = trimmedValue.startsWith('#') ? trimmedValue : `#${trimmedValue}`;
+            return normalizedValue.toLowerCase();
+        }
+
+        function syncColorInputs(type, colorValue) {
+            const { pickerId, valueId } = getColorElementIds(type);
+            document.getElementById(pickerId).value = colorValue;
+            document.getElementById(valueId).value = colorValue;
+        }
 
         function selectQRType(type) {
             selectedQRType = type;
@@ -733,13 +758,31 @@
         }
 
         function updateColorValue(type) {
-            if (type === 'fg') {
-                const color = document.getElementById('fgColor').value;
-                document.getElementById('fgColorValue').value = color;
-            } else {
-                const color = document.getElementById('bgColor').value;
-                document.getElementById('bgColorValue').value = color;
+            const { pickerId } = getColorElementIds(type);
+            syncColorInputs(type, document.getElementById(pickerId).value);
+        }
+
+        function updateColorFromText(type) {
+            const { valueId } = getColorElementIds(type);
+            const normalizedColor = normalizeHexColor(document.getElementById(valueId).value);
+
+            if (normalizedColor) {
+                syncColorInputs(type, normalizedColor);
             }
+        }
+
+        function finalizeColorInput(type) {
+            const { pickerId, valueId } = getColorElementIds(type);
+            const inputValue = document.getElementById(valueId).value;
+            const normalizedColor = normalizeHexColor(inputValue);
+
+            if (normalizedColor) {
+                syncColorInputs(type, normalizedColor);
+                return true;
+            }
+
+            document.getElementById(valueId).value = document.getElementById(pickerId).value;
+            return false;
         }
 
         function handleLogoUpload(event) {
@@ -822,6 +865,20 @@
             loader.classList.add('show');
             generateBtn.disabled = true;
 
+            const fgColor = normalizeHexColor(document.getElementById('fgColorValue').value);
+            const bgColor = normalizeHexColor(document.getElementById('bgColorValue').value);
+
+            if (!fgColor || !bgColor) {
+                loader.classList.remove('show');
+                generateBtn.disabled = false;
+                errorDiv.textContent = 'Colors must be 6-digit hex values like #0f172a.';
+                errorDiv.classList.add('show');
+                return;
+            }
+
+            syncColorInputs('fg', fgColor);
+            syncColorInputs('bg', bgColor);
+
             try {
                 const response = await fetch('/generate', {
                     method: 'POST',
@@ -833,8 +890,8 @@
                         logo: selectedQRType === 'url' ? logoBase64 : '',  // Only add logo for URL type
                         style: selectedStyle,
                         eye_style: selectedEyeStyle,
-                        fg_color: document.getElementById('fgColor').value,
-                        bg_color: document.getElementById('bgColor').value
+                        fg_color: fgColor,
+                        bg_color: bgColor
                     })
                 });
 
