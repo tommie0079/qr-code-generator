@@ -6,8 +6,21 @@ from qrcode.image.styles.colormasks import SolidFillColorMask
 from qrcode.image.styles.moduledrawers.pil import SquareModuleDrawer as EyeSquareDrawer, RoundedModuleDrawer as EyeRoundedDrawer, CircleModuleDrawer as EyeCircleDrawer
 import io
 import base64
+import re
 from PIL import Image, ImageDraw
 app = Flask(__name__, template_folder='.')
+
+HEX_COLOR_PATTERN = re.compile(r'^#?[0-9a-fA-F]{6}$')
+
+
+def parse_hex_color(color_value, default_value, field_name):
+    normalized_value = (color_value or default_value).strip()
+
+    if not HEX_COLOR_PATTERN.fullmatch(normalized_value):
+        raise ValueError(f'{field_name} must be a 6-digit hex color like #0f172a.')
+
+    hex_value = normalized_value.lstrip('#')
+    return tuple(int(hex_value[index:index + 2], 16) for index in (0, 2, 4))
 
 @app.route('/')
 def index():
@@ -26,9 +39,11 @@ def generate_qr():
     if not url:
         return {'error': 'URL is required'}, 400
     
-    # Convert hex to RGB
-    fg_rgb = tuple(int(fg_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
-    bg_rgb = tuple(int(bg_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+    try:
+        fg_rgb = parse_hex_color(fg_color, '#000000', 'Foreground color')
+        bg_rgb = parse_hex_color(bg_color, '#ffffff', 'Background color')
+    except ValueError as exc:
+        return {'error': str(exc)}, 400
     
     # Select module drawer based on style
     module_drawer_map = {
