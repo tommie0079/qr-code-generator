@@ -22,6 +22,49 @@ def parse_hex_color(color_value, default_value, field_name):
     hex_value = normalized_value.lstrip('#')
     return tuple(int(hex_value[index:index + 2], 16) for index in (0, 2, 4))
 
+
+def parse_bool_flag(flag_value):
+    if isinstance(flag_value, bool):
+        return flag_value
+
+    if isinstance(flag_value, str):
+        return flag_value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+    return bool(flag_value)
+
+
+def apply_transparent_background(img, front_rgb, back_rgb):
+    rgba_img = img.convert('RGBA')
+    transparent_pixels = []
+
+    for red, green, blue, _ in rgba_img.getdata():
+        pixel_rgb = (red, green, blue)
+
+        if pixel_rgb == back_rgb:
+            transparent_pixels.append(front_rgb + (0,))
+            continue
+
+        if pixel_rgb == front_rgb:
+            transparent_pixels.append(front_rgb + (255,))
+            continue
+
+        alpha_candidates = []
+        for channel_index, front_channel in enumerate(front_rgb):
+            background_channel = back_rgb[channel_index]
+
+            if front_channel == background_channel:
+                continue
+
+            channel_value = pixel_rgb[channel_index]
+            alpha_candidates.append((channel_value - background_channel) / (front_channel - background_channel))
+
+        alpha = sum(alpha_candidates) / len(alpha_candidates) if alpha_candidates else 1
+        alpha = max(0, min(1, alpha))
+        transparent_pixels.append(front_rgb + (int(round(alpha * 255)),))
+
+    rgba_img.putdata(transparent_pixels)
+    return rgba_img
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -35,6 +78,7 @@ def generate_qr():
     eye_style = data.get('eye_style', 'square')
     fg_color = data.get('fg_color', '#000000')
     bg_color = data.get('bg_color', '#ffffff')
+    transparent_background = parse_bool_flag(data.get('transparent_background', False))
     
     if not url:
         return {'error': 'URL is required'}, 400
@@ -82,7 +126,10 @@ def generate_qr():
         module_drawer=module_drawer,
         eye_drawer=eye_drawer,  # Apply eye styling
         color_mask=SolidFillColorMask(front_color=fg_rgb, back_color=bg_rgb)
-    ).convert('RGB')
+    ).convert('RGBA' if transparent_background else 'RGB')
+
+    if transparent_background:
+        img = apply_transparent_background(img, fg_rgb, bg_rgb)
     
     # If logo is provided, embed it in the center
     if logo_data:
@@ -105,13 +152,15 @@ def generate_qr():
             # Clear the center area of QR code (balanced size for scanning)
             clear_size = int(logo_size * 1.8)  # Clear area is 80% larger than logo
             clear_pos = ((qr_width - clear_size) // 2, (qr_height - clear_size) // 2)
+            fill_color = (255, 255, 255, 0) if transparent_background else bg_rgb
+            border_color = fg_rgb + (255,) if transparent_background else fg_rgb
             
             # Draw a filled rectangle in the center with background color
             draw = ImageDraw.Draw(img)
             draw.rectangle(
                 [clear_pos[0], clear_pos[1], clear_pos[0] + clear_size, clear_pos[1] + clear_size],
-                fill=bg_rgb,
-                outline=bg_rgb,
+                fill=fill_color,
+                outline=fill_color,
                 width=0
             )
             
@@ -120,7 +169,7 @@ def generate_qr():
             draw.rectangle(
                 [clear_pos[0], clear_pos[1], clear_pos[0] + clear_size, clear_pos[1] + clear_size],
                 fill=None,
-                outline=fg_rgb,  # Use foreground color for border
+                outline=border_color,  # Use foreground color for border
                 width=border_thickness
             )
             
@@ -130,13 +179,20 @@ def generate_qr():
             
             # Create minimal border
             border_size = int(final_logo_size * 0.05)  # Tiny 5% border
-            logo_with_border = Image.new('RGB', 
-                                         (final_logo_size + border_size * 2, final_logo_size + border_size * 2), 
-                                         bg_rgb)
+            logo_mode = 'RGBA' if transparent_background else 'RGB'
+            logo_background = (255, 255, 255, 0) if transparent_background else bg_rgb
+            logo_with_border = Image.new(
+                logo_mode,
+                (final_logo_size + border_size * 2, final_logo_size + border_size * 2),
+                logo_background,
+            )
             
             # Paste logo onto border
             logo_border_pos = (border_size, border_size)
-            if logo_resized.mode == 'RGBA':
+            if transparent_background:
+                logo_resized = logo_resized.convert('RGBA')
+                logo_with_border.paste(logo_resized, logo_border_pos, logo_resized)
+            elif logo_resized.mode == 'RGBA':
                 logo_with_border.paste(logo_resized, logo_border_pos, logo_resized)
             else:
                 logo_with_border.paste(logo_resized, logo_border_pos)
@@ -144,7 +200,10 @@ def generate_qr():
             # Calculate position to paste logo (center of QR code)
             logo_pos = ((qr_width - logo_with_border.size[0]) // 2, 
                        (qr_height - logo_with_border.size[1]) // 2)
-            img.paste(logo_with_border, logo_pos)
+            if transparent_background:
+                img.paste(logo_with_border, logo_pos, logo_with_border)
+            else:
+                img.paste(logo_with_border, logo_pos)
         except Exception as e:
             print(f"Error processing logo: {e}")
     
